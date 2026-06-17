@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const leftInitialNodes = [
   {
@@ -39,6 +39,25 @@ export default function TwoFactorTrees() {
   const [leftNodes, setLeftNodes] = useState(leftInitialNodes)
   const [rightNodes, setRightNodes] = useState(rightInitialNodes)
   const [hoveredNodeKey, setHoveredNodeKey] = useState(null)
+  const hideActionsTimerRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (hideActionsTimerRef.current) clearTimeout(hideActionsTimerRef.current)
+    }
+  }, [])
+
+  const showActionsFor = (nodeKey) => {
+    if (hideActionsTimerRef.current) clearTimeout(hideActionsTimerRef.current)
+    setHoveredNodeKey(nodeKey)
+  }
+
+  const hideActionsSoon = () => {
+    if (hideActionsTimerRef.current) clearTimeout(hideActionsTimerRef.current)
+    hideActionsTimerRef.current = setTimeout(() => {
+      setHoveredNodeKey(null)
+    }, 4000)
+  }
 
   const getDepth = (node, allNodes) => {
     let depth = 0
@@ -56,11 +75,6 @@ export default function TwoFactorTrees() {
       return allNodes
     }
 
-    const parent = allNodes.find((n) => n.id === node.parent)
-    if (parent && parent.value != null) {
-      if (node.value > parent.value) return allNodes
-      if (parent.value % node.value !== 0) return allNodes
-    }
 
     const depth = getDepth(node, allNodes)
     const dx = 90 / Math.pow(2, depth)
@@ -170,8 +184,8 @@ export default function TwoFactorTrees() {
         return (
           <g
             key={node.id}
-            onMouseEnter={() => setHoveredNodeKey(nodeKey)}
-            onMouseLeave={() => setHoveredNodeKey(null)}
+            onMouseEnter={() => showActionsFor(nodeKey)}
+            onMouseLeave={hideActionsSoon}
           >
             <circle
               cx={node.x}
@@ -217,6 +231,8 @@ export default function TwoFactorTrees() {
               >
                 <button
                   type="button"
+                  onMouseEnter={() => showActionsFor(nodeKey)}
+                  onMouseLeave={hideActionsSoon}
                   onClick={() => togglePrime(setTreeNodes, node.id)}
                   className={`w-full h-full rounded border text-xs font-medium leading-none ${
                     node.isPrime
@@ -241,7 +257,7 @@ export default function TwoFactorTrees() {
   const svgViewBoxHeight = Math.max(svgViewportHeight, maxY + 100)
 
   return (
-    <div className="flex h-full flex-col p-4">
+    <div className="box-border flex h-full flex-col p-4">
       <svg
         width={svgViewportWidth}
         height={svgViewportHeight}

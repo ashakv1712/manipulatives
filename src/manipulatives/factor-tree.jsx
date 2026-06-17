@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const initialNodes = [
   {
@@ -26,6 +26,25 @@ const svgViewportHeight = 340
 export default function FactorTree() {
   const [nodes, setNodes] = useState(initialNodes)
   const [hoveredNodeId, setHoveredNodeId] = useState(null)
+  const hideActionsTimerRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (hideActionsTimerRef.current) clearTimeout(hideActionsTimerRef.current)
+    }
+  }, [])
+
+  const showActionsFor = (nodeId) => {
+    if (hideActionsTimerRef.current) clearTimeout(hideActionsTimerRef.current)
+    setHoveredNodeId(nodeId)
+  }
+
+  const hideActionsSoon = () => {
+    if (hideActionsTimerRef.current) clearTimeout(hideActionsTimerRef.current)
+    hideActionsTimerRef.current = setTimeout(() => {
+      setHoveredNodeId(null)
+    }, 4000)
+  }
 
   const getDepth = (node, allNodes) => {
     let depth = 0
@@ -43,11 +62,6 @@ export default function FactorTree() {
       return allNodes
     }
 
-    const parent = allNodes.find((n) => n.id === node.parent)
-    if (parent && parent.value != null) {
-      if (node.value > parent.value) return allNodes
-      if (parent.value % node.value !== 0) return allNodes
-    }
 
     const depth = getDepth(node, allNodes)
     const dx = 120 / Math.pow(2, depth)
@@ -140,7 +154,7 @@ export default function FactorTree() {
   const viewBoxHeight = Math.max(svgViewportHeight, maxNodeY + 90)
 
   return (
-    <div className="flex h-full flex-col p-4">
+    <div className="box-border flex h-full flex-col p-4">
       <svg
         width={svgViewportWidth}
         height={svgViewportHeight}
@@ -172,8 +186,8 @@ export default function FactorTree() {
           return (
             <g
               key={node.id}
-              onMouseEnter={() => setHoveredNodeId(node.id)}
-              onMouseLeave={() => setHoveredNodeId(null)}
+              onMouseEnter={() => showActionsFor(node.id)}
+              onMouseLeave={hideActionsSoon}
             >
               <circle
                 cx={node.x}
@@ -219,6 +233,8 @@ export default function FactorTree() {
                 >
                   <button
                     type="button"
+                    onMouseEnter={() => showActionsFor(node.id)}
+                    onMouseLeave={hideActionsSoon}
                     onClick={() => togglePrime(node.id)}
                     className={`w-full h-full rounded border text-xs font-medium leading-none ${
                       node.isPrime

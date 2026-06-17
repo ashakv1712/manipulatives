@@ -8,9 +8,9 @@ export default function App() {
   const ActiveComponent = active.component
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <nav className="w-48 shrink-0 border-r border-slate-200 bg-slate-50 p-3">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="flex h-screen overflow-hidden bg-slate-950">
+      <nav className="w-48 shrink-0 border-r border-slate-800 bg-slate-900 p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
           Manipulatives
         </p>
         <ul className="space-y-1">
@@ -21,8 +21,8 @@ export default function App() {
                 onClick={() => setActiveId(m.id)}
                 className={`w-full rounded px-2 py-1.5 text-left text-sm ${
                   m.id === activeId
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-700 hover:bg-slate-200'
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
               >
                 {m.name}
@@ -32,8 +32,8 @@ export default function App() {
         </ul>
       </nav>
 
-      <main className="flex-1 overflow-hidden bg-white py-8">
-        <h1 className="mb-2 text-center text-2xl font-semibold text-slate-800">
+      <main className="flex-1 overflow-hidden bg-slate-950 py-8">
+        <h1 className="mb-2 text-center text-2xl font-semibold text-slate-100">
           {active.name}
         </h1>
         <ManipulativeCanvas>

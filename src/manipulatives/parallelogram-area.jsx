@@ -103,7 +103,7 @@ export default function ParallelogramArea() {
     const visualBase = base * drawingScale
     const visualHeight = height * drawingScale
     const visualSkew = skew * drawingScale
-    const left = Math.round((canvasWidth - visualBase - visualSkew - 135) / 2)
+    const left = Math.round((canvasWidth - visualBase - visualSkew) / 2)
     const top = 64
     const bottom = top + visualHeight
     const rectangleLeft = left + visualSkew

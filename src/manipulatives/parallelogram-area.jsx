@@ -9,6 +9,7 @@ const maxHeight = 130
 const minSkew = 10
 const maxSkew = 70
 const animationMs = 1150
+const drawingScale = 1.2
 
 const sliderAccent = {
   blue: '#2563eb',
@@ -63,9 +64,9 @@ export default function ParallelogramArea() {
   const frameRef = useRef(null)
   const dragRef = useRef(null)
   const progressRef = useRef(0)
-  const [base, setBase] = useState(160)
-  const [height, setHeight] = useState(90)
-  const [skew, setSkew] = useState(46)
+  const [base, setBase] = useState(150)
+  const [height, setHeight] = useState(85)
+  const [skew, setSkew] = useState(40)
   const [progress, setProgress] = useState(0)
   const [phase, setPhase] = useState('ready')
 
@@ -99,11 +100,14 @@ export default function ParallelogramArea() {
   }
 
   const geometry = useMemo(() => {
-    const left = Math.round((canvasWidth - base - skew - 125) / 2)
-    const top = 72
-    const bottom = top + height
-    const rectangleLeft = left + skew
-    const rectangleRight = rectangleLeft + base
+    const visualBase = base * drawingScale
+    const visualHeight = height * drawingScale
+    const visualSkew = skew * drawingScale
+    const left = Math.round((canvasWidth - visualBase - visualSkew - 135) / 2)
+    const top = 64
+    const bottom = top + visualHeight
+    const rectangleLeft = left + visualSkew
+    const rectangleRight = rectangleLeft + visualBase
 
     return {
       left,
@@ -111,12 +115,15 @@ export default function ParallelogramArea() {
       bottom,
       rectangleLeft,
       rectangleRight,
+      visualBase,
+      visualHeight,
+      visualSkew,
       points: {
         a: { x: left, y: bottom },
-        b: { x: left + skew, y: top },
-        c: { x: left + skew + base, y: top },
-        d: { x: left + base, y: bottom },
-        e: { x: left + skew, y: bottom },
+        b: { x: left + visualSkew, y: top },
+        c: { x: left + visualSkew + visualBase, y: top },
+        d: { x: left + visualBase, y: bottom },
+        e: { x: left + visualSkew, y: bottom },
       },
     }
   }, [base, height, skew])
@@ -135,15 +142,14 @@ export default function ParallelogramArea() {
     const ctx = canvas?.getContext('2d')
     if (!ctx) return
 
-    const { points, top, bottom, rectangleLeft, rectangleRight } = geometry
-    const triangleShift = progressRef.current * base
+    const { points, top, bottom, rectangleLeft, rectangleRight, visualBase, visualHeight } =
+      geometry
+    const triangleShift = progressRef.current * visualBase
     const triangle = [
       { x: points.a.x + triangleShift, y: points.a.y },
       { x: points.b.x + triangleShift, y: points.b.y },
       { x: points.e.x + triangleShift, y: points.e.y },
     ]
-    const formulaText = `Area = b x h = ${area.toLocaleString()}`
-
     const drawTrianglePath = () => {
       ctx.beginPath()
       ctx.moveTo(triangle[0].x, triangle[0].y)
@@ -152,18 +158,18 @@ export default function ParallelogramArea() {
       ctx.closePath()
     }
 
-    const drawDotOverlay = () => {
+    const drawStripeOverlay = () => {
       ctx.save()
       drawTrianglePath()
       ctx.clip()
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.72)'
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.42)'
+      ctx.lineWidth = 3
 
-      for (let x = triangle[0].x - 85; x < triangle[2].x + 15; x += 12) {
-        for (let y = top - 8; y < bottom + 12; y += 12) {
-          ctx.beginPath()
-          ctx.arc(x, y, 1.9, 0, Math.PI * 2)
-          ctx.fill()
-        }
+      for (let x = triangle[0].x - visualHeight - 25; x < triangle[2].x + visualHeight; x += 13) {
+        ctx.beginPath()
+        ctx.moveTo(x, bottom + 18)
+        ctx.lineTo(x + visualHeight + 48, top - 18)
+        ctx.stroke()
       }
 
       ctx.restore()
@@ -181,7 +187,7 @@ export default function ParallelogramArea() {
 
     if (progress >= 1) {
       ctx.beginPath()
-      ctx.rect(rectangleLeft, top, base, height)
+      ctx.rect(rectangleLeft, top, visualBase, visualHeight)
       ctx.fill()
       ctx.stroke()
     } else {
@@ -200,18 +206,26 @@ export default function ParallelogramArea() {
     ctx.strokeStyle = '#1d4ed8'
     ctx.fill()
     ctx.stroke()
-    drawDotOverlay()
+    drawStripeOverlay()
 
     ctx.setLineDash([7, 6])
     ctx.lineWidth = 2
 
-    const heightLineX = points.b.x - 34
+    const heightLineX = points.b.x - 62
     ctx.strokeStyle = '#f97316'
     ctx.beginPath()
     ctx.moveTo(heightLineX, top)
     ctx.lineTo(heightLineX, bottom)
     ctx.stroke()
     ctx.setLineDash([])
+
+    ctx.lineWidth = 2.5
+    ctx.beginPath()
+    ctx.moveTo(heightLineX - 9, top)
+    ctx.lineTo(heightLineX + 9, top)
+    ctx.moveTo(heightLineX - 9, bottom)
+    ctx.lineTo(heightLineX + 9, bottom)
+    ctx.stroke()
 
     ctx.fillStyle = '#ea580c'
     ctx.font = '700 17px Inter, system-ui, sans-serif'
@@ -226,20 +240,49 @@ export default function ParallelogramArea() {
     ctx.stroke()
     ctx.setLineDash([])
 
+    ctx.lineWidth = 2.5
+    ctx.beginPath()
+    ctx.moveTo(rectangleLeft, bottom + 19)
+    ctx.lineTo(rectangleLeft, bottom + 37)
+    ctx.moveTo(rectangleRight, bottom + 19)
+    ctx.lineTo(rectangleRight, bottom + 37)
+    ctx.stroke()
+
     ctx.fillStyle = '#1d4ed8'
     ctx.font = '700 17px Inter, system-ui, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(`b = ${base}`, rectangleLeft + base / 2, bottom + 54)
+    ctx.fillText(`b = ${base}`, rectangleLeft + visualBase / 2, bottom + 54)
+
+    const centerX = rectangleLeft + visualBase / 2
+    const centerY = top + visualHeight / 2
+    const formulaScale = clamp(Math.min(visualBase / 170, visualHeight / 92), 0.68, 1)
+    const formulaBoxWidth = clamp(visualBase * 0.74, 112, 190)
+    const formulaBoxHeight = clamp(visualHeight * 0.58, 48, 70)
+    const formulaFontSize = Math.round(20 * formulaScale)
+    const valueFontSize = Math.round(25 * formulaScale)
+    ctx.fillStyle = 'rgba(248, 250, 252, 0.76)'
+    ctx.beginPath()
+    ctx.roundRect(
+      centerX - formulaBoxWidth / 2,
+      centerY - formulaBoxHeight / 2,
+      formulaBoxWidth,
+      formulaBoxHeight,
+      8,
+    )
+    ctx.fill()
 
     ctx.fillStyle = '#0f172a'
-    ctx.font = '700 18px Inter, system-ui, sans-serif'
+    ctx.font = `700 ${formulaFontSize}px Inter, system-ui, sans-serif`
     ctx.textAlign = 'center'
-    ctx.fillText(formulaText, rectangleLeft + base / 2, top + height / 2 + 6)
+    ctx.fillText('Area = b x h', centerX, centerY - 5 * formulaScale)
+    ctx.fillStyle = '#1d4ed8'
+    ctx.font = `800 ${valueFontSize}px Inter, system-ui, sans-serif`
+    ctx.fillText(area.toLocaleString(), centerX, centerY + 23 * formulaScale)
 
     if (phase === 'ready') {
       ctx.fillStyle = '#475569'
       ctx.font = '600 12px Inter, system-ui, sans-serif'
-      ctx.fillText('Drag the dotted triangle, or use the slide button.', rectangleLeft + base / 2, 320)
+      ctx.fillText('Drag the striped triangle, or use the slide button.', centerX, 320)
     }
   }, [area, base, geometry, height, phase, progress])
 
@@ -276,17 +319,17 @@ export default function ParallelogramArea() {
   }
 
   const resetValues = () => {
-    setBase(160)
-    setHeight(90)
-    setSkew(46)
+    setBase(150)
+    setHeight(85)
+    setSkew(40)
     resetAnimation()
   }
 
   const beginDrag = (event) => {
     const canvas = canvasRef.current
     const point = getCanvasPoint(event)
-    const { points } = geometry
-    const triangleShift = progress * base
+    const { points, visualBase } = geometry
+    const triangleShift = progress * visualBase
     const triangle = [
       { x: points.a.x + triangleShift, y: points.a.y },
       { x: points.b.x + triangleShift, y: points.b.y },
@@ -311,7 +354,11 @@ export default function ParallelogramArea() {
 
     const point = getCanvasPoint(event)
     const delta = point.x - dragRef.current.startX
-    const nextProgress = clamp(dragRef.current.startProgress + delta / base, 0, 1)
+    const nextProgress = clamp(
+      dragRef.current.startProgress + delta / geometry.visualBase,
+      0,
+      1,
+    )
     dragRef.current.currentProgress = nextProgress
     progressRef.current = nextProgress
     setProgress(nextProgress)

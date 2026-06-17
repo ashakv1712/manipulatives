@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 const canvasWidth = 760
-const canvasHeight = 275
+const canvasHeight = 345
 const minBase = 80
 const maxBase = 220
 const minHeight = 40
@@ -10,13 +10,32 @@ const minSkew = 10
 const maxSkew = 70
 const animationMs = 1150
 
-const easeInOut = (t) =>
-  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
-
 const sliderAccent = {
   blue: '#2563eb',
   orange: '#f97316',
   emerald: '#10b981',
+}
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
+
+const easeInOut = (t) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+
+const pointInTriangle = (point, a, b, c) => {
+  const area =
+    0.5 *
+    (-b.y * c.x +
+      a.y * (-b.x + c.x) +
+      a.x * (b.y - c.y) +
+      b.x * c.y)
+  const s =
+    (1 / (2 * area)) *
+    (a.y * c.x - a.x * c.y + (c.y - a.y) * point.x + (a.x - c.x) * point.y)
+  const t =
+    (1 / (2 * area)) *
+    (a.x * b.y - a.y * b.x + (a.y - b.y) * point.x + (b.x - a.x) * point.y)
+
+  return s >= 0 && t >= 0 && 1 - s - t >= 0
 }
 
 function Slider({ label, value, min, max, color, onChange }) {
@@ -42,6 +61,8 @@ function Slider({ label, value, min, max, color, onChange }) {
 export default function ParallelogramArea() {
   const canvasRef = useRef(null)
   const frameRef = useRef(null)
+  const dragRef = useRef(null)
+  const progressRef = useRef(0)
   const [base, setBase] = useState(160)
   const [height, setHeight] = useState(90)
   const [skew, setSkew] = useState(46)
@@ -50,9 +71,14 @@ export default function ParallelogramArea() {
 
   const area = base * height
 
+  useEffect(() => {
+    progressRef.current = progress
+  }, [progress])
+
   const resetAnimation = useCallback(() => {
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
     frameRef.current = null
+    dragRef.current = null
     setProgress(0)
     setPhase('ready')
   }, [])
@@ -73,8 +99,8 @@ export default function ParallelogramArea() {
   }
 
   const geometry = useMemo(() => {
-    const left = Math.round((canvasWidth - base - skew - 90) / 2)
-    const top = 58
+    const left = Math.round((canvasWidth - base - skew - 125) / 2)
+    const top = 72
     const bottom = top + height
     const rectangleLeft = left + skew
     const rectangleRight = rectangleLeft + base
@@ -95,39 +121,70 @@ export default function ParallelogramArea() {
     }
   }, [base, height, skew])
 
+  const getCanvasPoint = (event) => {
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+    }
+  }
+
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!ctx) return
 
+    const { points, top, bottom, rectangleLeft, rectangleRight } = geometry
+    const triangleShift = progressRef.current * base
+    const triangle = [
+      { x: points.a.x + triangleShift, y: points.a.y },
+      { x: points.b.x + triangleShift, y: points.b.y },
+      { x: points.e.x + triangleShift, y: points.e.y },
+    ]
+    const formulaText = `Area = b x h = ${area.toLocaleString()}`
+
+    const drawTrianglePath = () => {
+      ctx.beginPath()
+      ctx.moveTo(triangle[0].x, triangle[0].y)
+      ctx.lineTo(triangle[1].x, triangle[1].y)
+      ctx.lineTo(triangle[2].x, triangle[2].y)
+      ctx.closePath()
+    }
+
+    const drawDotOverlay = () => {
+      ctx.save()
+      drawTrianglePath()
+      ctx.clip()
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.72)'
+
+      for (let x = triangle[0].x - 85; x < triangle[2].x + 15; x += 12) {
+        for (let y = top - 8; y < bottom + 12; y += 12) {
+          ctx.beginPath()
+          ctx.arc(x, y, 1.9, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+
+      ctx.restore()
+    }
+
     ctx.clearRect(0, 0, canvasWidth, canvasHeight)
     ctx.fillStyle = '#f8fafc'
     ctx.fillRect(0, 0, canvasWidth, canvasHeight)
-
-    const { points, top, bottom, rectangleLeft, rectangleRight } = geometry
-    const triangleShift = easeInOut(progress) * base
-    const after = progress >= 1
-
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
 
-    if (after) {
-      ctx.fillStyle = '#dbeafe'
-      ctx.strokeStyle = '#1d4ed8'
-      ctx.lineWidth = 3
+    ctx.fillStyle = '#bfdbfe'
+    ctx.strokeStyle = '#1d4ed8'
+    ctx.lineWidth = 3
+
+    if (progress >= 1) {
       ctx.beginPath()
       ctx.rect(rectangleLeft, top, base, height)
       ctx.fill()
       ctx.stroke()
-
-      ctx.fillStyle = '#166534'
-      ctx.font = '700 22px Inter, system-ui, sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText('Area = b × h ✓', rectangleLeft + base / 2, top - 22)
     } else {
-      ctx.fillStyle = '#bfdbfe'
-      ctx.strokeStyle = '#1d4ed8'
-      ctx.lineWidth = 3
       ctx.beginPath()
       ctx.moveTo(points.b.x, points.b.y)
       ctx.lineTo(points.c.x, points.c.y)
@@ -136,46 +193,55 @@ export default function ParallelogramArea() {
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
-
-      ctx.fillStyle = '#86efac'
-      ctx.strokeStyle = '#15803d'
-      ctx.lineWidth = 3
-      ctx.beginPath()
-      ctx.moveTo(points.a.x + triangleShift, points.a.y)
-      ctx.lineTo(points.b.x + triangleShift, points.b.y)
-      ctx.lineTo(points.e.x + triangleShift, points.e.y)
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
     }
+
+    drawTrianglePath()
+    ctx.fillStyle = '#bfdbfe'
+    ctx.strokeStyle = '#1d4ed8'
+    ctx.fill()
+    ctx.stroke()
+    drawDotOverlay()
 
     ctx.setLineDash([7, 6])
     ctx.lineWidth = 2
 
+    const heightLineX = points.b.x - 34
     ctx.strokeStyle = '#f97316'
     ctx.beginPath()
-    ctx.moveTo(points.b.x - 12, top)
-    ctx.lineTo(points.e.x - 12, bottom)
-    ctx.stroke()
-    ctx.fillStyle = '#ea580c'
-    ctx.font = '700 18px Inter, system-ui, sans-serif'
-    ctx.textAlign = 'right'
-    ctx.fillText('h', points.b.x - 20, top + height / 2 + 6)
-
-    ctx.strokeStyle = '#2563eb'
-    ctx.beginPath()
-    ctx.moveTo(rectangleLeft, bottom + 24)
-    ctx.lineTo(rectangleRight, bottom + 24)
+    ctx.moveTo(heightLineX, top)
+    ctx.lineTo(heightLineX, bottom)
     ctx.stroke()
     ctx.setLineDash([])
-    ctx.fillStyle = '#1d4ed8'
-    ctx.textAlign = 'center'
-    ctx.fillText('b', rectangleLeft + base / 2, bottom + 48)
 
-    ctx.fillStyle = '#475569'
-    ctx.font = '600 13px Inter, system-ui, sans-serif'
-    ctx.fillText('same base, same height, same area', rectangleLeft + base / 2, 250)
-  }, [base, geometry, height, progress])
+    ctx.fillStyle = '#ea580c'
+    ctx.font = '700 17px Inter, system-ui, sans-serif'
+    ctx.textAlign = 'right'
+    ctx.fillText(`h = ${height}`, heightLineX - 10, top + height / 2 + 6)
+
+    ctx.setLineDash([7, 6])
+    ctx.strokeStyle = '#2563eb'
+    ctx.beginPath()
+    ctx.moveTo(rectangleLeft, bottom + 28)
+    ctx.lineTo(rectangleRight, bottom + 28)
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    ctx.fillStyle = '#1d4ed8'
+    ctx.font = '700 17px Inter, system-ui, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(`b = ${base}`, rectangleLeft + base / 2, bottom + 54)
+
+    ctx.fillStyle = '#0f172a'
+    ctx.font = '700 18px Inter, system-ui, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(formulaText, rectangleLeft + base / 2, top + height / 2 + 6)
+
+    if (phase === 'ready') {
+      ctx.fillStyle = '#475569'
+      ctx.font = '600 12px Inter, system-ui, sans-serif'
+      ctx.fillText('Drag the dotted triangle, or use the slide button.', rectangleLeft + base / 2, 320)
+    }
+  }, [area, base, geometry, height, phase, progress])
 
   useEffect(() => {
     return () => {
@@ -184,20 +250,24 @@ export default function ParallelogramArea() {
   }, [])
 
   const slideTriangle = () => {
-    if (phase === 'sliding') return
+    if (phase === 'sliding' || progress >= 1) return
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
 
     setPhase('sliding')
     const start = performance.now()
+    const startProgress = progress
+    const remaining = 1 - startProgress
 
     const tick = (now) => {
-      const nextProgress = Math.min(1, (now - start) / animationMs)
+      const elapsed = Math.min(1, (now - start) / animationMs)
+      const nextProgress = startProgress + remaining * easeInOut(elapsed)
       setProgress(nextProgress)
 
-      if (nextProgress < 1) {
+      if (elapsed < 1) {
         frameRef.current = requestAnimationFrame(tick)
       } else {
         frameRef.current = null
+        setProgress(1)
         setPhase('done')
       }
     }
@@ -212,46 +282,74 @@ export default function ParallelogramArea() {
     resetAnimation()
   }
 
-  const insight =
-    phase === 'done'
-      ? 'The moved triangle fills the missing corner, making a rectangle with the same base and height.'
-      : phase === 'sliding'
-        ? 'The green triangle is sliding across without stretching, so the total area stays unchanged.'
-        : 'A parallelogram can be split into a center rectangle and a side triangle.'
+  const beginDrag = (event) => {
+    const canvas = canvasRef.current
+    const point = getCanvasPoint(event)
+    const { points } = geometry
+    const triangleShift = progress * base
+    const triangle = [
+      { x: points.a.x + triangleShift, y: points.a.y },
+      { x: points.b.x + triangleShift, y: points.b.y },
+      { x: points.e.x + triangleShift, y: points.e.y },
+    ]
 
-  const stepLabel =
-    phase === 'done'
-      ? 'Rectangle formed'
-      : phase === 'sliding'
-        ? 'Triangle moving'
-        : 'Start with a parallelogram'
+    if (!pointInTriangle(point, triangle[0], triangle[1], triangle[2])) return
+    if (frameRef.current) cancelAnimationFrame(frameRef.current)
+
+    canvas.setPointerCapture(event.pointerId)
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: point.x,
+      currentProgress: progressRef.current,
+      startProgress: progressRef.current,
+    }
+    setPhase('dragging')
+  }
+
+  const dragTriangle = (event) => {
+    if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return
+
+    const point = getCanvasPoint(event)
+    const delta = point.x - dragRef.current.startX
+    const nextProgress = clamp(dragRef.current.startProgress + delta / base, 0, 1)
+    dragRef.current.currentProgress = nextProgress
+    progressRef.current = nextProgress
+    setProgress(nextProgress)
+  }
+
+  const endDrag = (event) => {
+    if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return
+
+    const finalProgress = dragRef.current.currentProgress
+    dragRef.current = null
+    event.currentTarget.releasePointerCapture(event.pointerId)
+
+    if (finalProgress > 0.96) {
+      setProgress(1)
+      setPhase('done')
+    } else if (finalProgress < 0.04) {
+      setProgress(0)
+      setPhase('ready')
+    } else {
+      setPhase('ready')
+    }
+  }
 
   return (
     <div className="flex h-full flex-col bg-slate-50 px-5 py-4 text-slate-900">
-      <div className="mb-3 grid grid-cols-3 gap-2 rounded border border-slate-200 bg-white px-3 py-2 shadow-sm">
-        <div>
-          <p className="text-[11px] font-semibold uppercase text-slate-500">Base</p>
-          <p className="text-lg font-bold text-blue-700">{base}</p>
-        </div>
-        <div>
-          <p className="text-[11px] font-semibold uppercase text-slate-500">Height</p>
-          <p className="text-lg font-bold text-orange-600">{height}</p>
-        </div>
-        <div>
-          <p className="text-[11px] font-semibold uppercase text-slate-500">Area = b × h</p>
-          <p className="text-lg font-bold text-emerald-700">{area.toLocaleString()}</p>
-        </div>
-      </div>
-
       <canvas
         ref={canvasRef}
         width={canvasWidth}
         height={canvasHeight}
-        className="rounded border border-slate-200 bg-slate-50"
+        onPointerDown={beginDrag}
+        onPointerMove={dragTriangle}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        className="touch-none cursor-grab rounded border border-slate-200 bg-slate-50 active:cursor-grabbing"
         aria-label="Animated area model for a parallelogram transforming into a rectangle"
       />
 
-      <div className="mt-3 grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-3">
+      <div className="mt-4 grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-3">
         <Slider
           label="Base"
           value={base}
@@ -283,7 +381,7 @@ export default function ParallelogramArea() {
               onClick={resetAnimation}
               className="rounded bg-slate-800 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-700"
             >
-              ↩ Slide back
+              Slide back
             </button>
           ) : (
             <button
@@ -292,7 +390,7 @@ export default function ParallelogramArea() {
               disabled={phase === 'sliding'}
               className="rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-300"
             >
-              Slide the triangle →
+              Slide triangle
             </button>
           )}
           <button
@@ -300,14 +398,9 @@ export default function ParallelogramArea() {
             onClick={resetValues}
             className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100"
           >
-            ↺ Reset
+            Reset
           </button>
         </div>
-      </div>
-
-      <div className="mt-3 rounded border border-slate-200 bg-white px-3 py-2 shadow-sm">
-        <p className="text-sm font-bold text-slate-900">{stepLabel}</p>
-        <p className="mt-1 text-sm text-slate-600">{insight}</p>
       </div>
     </div>
   )

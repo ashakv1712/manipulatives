@@ -256,7 +256,7 @@ export default function ParallelogramArea() {
     ctx.textAlign = 'center'
     ctx.fillText(`b = ${base}`, baseLineCenter, bottom + 54)
 
-    const centerX = rectangleLeft + visualBase / 2
+    const centerX = (points.a.x + points.c.x) / 2
     const centerY = top + visualHeight / 2
     const formulaScale = clamp(Math.min(visualBase / 170, visualHeight / 92), 0.68, 1)
     const formulaBoxWidth = clamp(visualBase * 0.74, 112, 190)

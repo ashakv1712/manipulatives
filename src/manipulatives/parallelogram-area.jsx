@@ -142,8 +142,7 @@ export default function ParallelogramArea() {
     const ctx = canvas?.getContext('2d')
     if (!ctx) return
 
-    const { points, top, bottom, rectangleLeft, rectangleRight, visualBase, visualHeight } =
-      geometry
+    const { points, top, bottom, rectangleLeft, visualBase, visualHeight } = geometry
     const triangleShift = progressRef.current * visualBase
     const triangle = [
       { x: points.a.x + triangleShift, y: points.a.y },
@@ -232,26 +231,30 @@ export default function ParallelogramArea() {
     ctx.textAlign = 'right'
     ctx.fillText(`h = ${height}`, heightLineX - 10, top + height / 2 + 6)
 
+    const baseLineStart = points.a.x
+    const baseLineEnd = points.d.x
+    const baseLineCenter = baseLineStart + visualBase / 2
+
     ctx.setLineDash([7, 6])
     ctx.strokeStyle = '#2563eb'
     ctx.beginPath()
-    ctx.moveTo(rectangleLeft, bottom + 28)
-    ctx.lineTo(rectangleRight, bottom + 28)
+    ctx.moveTo(baseLineStart, bottom + 28)
+    ctx.lineTo(baseLineEnd, bottom + 28)
     ctx.stroke()
     ctx.setLineDash([])
 
     ctx.lineWidth = 2.5
     ctx.beginPath()
-    ctx.moveTo(rectangleLeft, bottom + 19)
-    ctx.lineTo(rectangleLeft, bottom + 37)
-    ctx.moveTo(rectangleRight, bottom + 19)
-    ctx.lineTo(rectangleRight, bottom + 37)
+    ctx.moveTo(baseLineStart, bottom + 19)
+    ctx.lineTo(baseLineStart, bottom + 37)
+    ctx.moveTo(baseLineEnd, bottom + 19)
+    ctx.lineTo(baseLineEnd, bottom + 37)
     ctx.stroke()
 
     ctx.fillStyle = '#1d4ed8'
     ctx.font = '700 17px Inter, system-ui, sans-serif'
     ctx.textAlign = 'center'
-    ctx.fillText(`b = ${base}`, rectangleLeft + visualBase / 2, bottom + 54)
+    ctx.fillText(`b = ${base}`, baseLineCenter, bottom + 54)
 
     const centerX = rectangleLeft + visualBase / 2
     const centerY = top + visualHeight / 2
